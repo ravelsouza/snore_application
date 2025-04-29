@@ -9,7 +9,7 @@ scaler = joblib.load('scaler.pkl')
 # with open('scaler.pkl', 'rb') as f:
 #     scaler = pickle.load(f)
 
-interpreter = tf.lite.Interpreter(model_path="modelo.tflite")
+interpreter = tf.lite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
