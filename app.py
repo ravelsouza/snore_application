@@ -2,10 +2,12 @@ from flask import Flask, request, jsonify
 import numpy as np
 import pickle
 import tensorflow as tf
+import joblib
 
+scaler = joblib.load('scaler.pkl')
 # Carregar scaler e modelo
-with open('scaler.pkl', 'rb') as f:
-    scaler = pickle.load(f)
+# with open('scaler.pkl', 'rb') as f:
+#     scaler = pickle.load(f)
 
 interpreter = tf.lite.Interpreter(model_path="modelo.tflite")
 interpreter.allocate_tensors()
