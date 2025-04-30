@@ -1,2 +1,2 @@
 Flask==3.0.3
-guinicorn==22.0.0
+guinicorn
