@@ -224,7 +224,6 @@ tensorflow==2.19.0
 tensorflow-datasets==4.9.8
 tensorflow-hub==0.12.0
 tensorflow-metadata==1.16.1
-tensorflow_intel==2.18.0
 tensorflowjs==3.18.0
 termcolor==2.5.0
 tflite-support==0.1.0a1
