@@ -9,12 +9,16 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+@app.route('/teste', methods=['POST'])
+def teste():
+    return '<h1>Esse é o Teste de um modelo de Machine Leaning para detecção de ronco</h1>'
+
 
 
 # Carrega modelo e scaler
-interpreter = tf.lite.Interpreter(model_path="model.tflite")
+interpreter = tf.lite.Interpreter(model_path="C:\\sexta\\appe\\Machine-Learning\\model.tflite")
 interpreter.allocate_tensors()
-scaler = joblib.load("scaler.pkl")
+scaler = joblib.load("C:\\sexta\\appe\\Machine-Learning\\scaler.pkl")
 
 @app.route('/predict', methods=['POST'])
 def predict():
