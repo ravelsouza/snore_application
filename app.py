@@ -16,9 +16,9 @@ def teste():
 
 
 # Carrega modelo e scaler
-interpreter = tf.lite.Interpreter(model_path="C:\\sexta\\appe\\Machine-Learning\\model.tflite")
+interpreter = tf.lite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
-scaler = joblib.load("C:\\sexta\\appe\\Machine-Learning\\scaler.pkl")
+scaler = joblib.load("scaler.pkl")
 
 @app.route('/predict', methods=['POST'])
 def predict():
