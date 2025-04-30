@@ -9,13 +9,13 @@ import os
 app = Flask(__name__)
 
 # Carrega modelo TFLite
-interpreter = tf.lite.Interpreter(model_path="C:\\sexta\\appe\\snore_application\\model.tflite")
+interpreter = tf.lite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
 # Carrega scaler
-scaler = joblib.load("C:\\sexta\\appe\\snore_application\\scaler.pkl")
+scaler = joblib.load("scaler.pkl")
 
 def preprocess_audio(file_path, max_frames=128):
     try:
