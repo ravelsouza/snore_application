@@ -6,5 +6,9 @@ app = Flask(__name__)
 def home():
     return "<h1> Ravel Snore Application </h1>"
 
+@app.route('/predict', methods=['GET'])
+def home():
+    return "<h1> Ronco </h1>"
+
 if __name__ == '__main__':
     app.run()
