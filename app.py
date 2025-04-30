@@ -1,75 +1,80 @@
 from flask import Flask, request, jsonify
 import numpy as np
-import tensorflow as tf
-import joblib
 import librosa
-import tempfile
-import os
+import tensorflow as tf
+from sklearn.preprocessing import StandardScaler
+import joblib
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
-# Carrega modelo TFLite
-interpreter = tf.lite.Interpreter(model_path="model.tflite")
+
+
+# Carrega modelo e scaler
+interpreter = tf.lite.Interpreter(model_path="C:\\sexta\\appe\\Machine-Learning\\model.tflite")
 interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-# Carrega scaler
-scaler = joblib.load("scaler.pkl")
-
-def preprocess_audio(file_path, max_frames=128):
-    try:
-        audio, sr = librosa.load(file_path, sr=16000)
-        stft = librosa.stft(audio, n_fft=512, hop_length=256)
-        spectrogram = np.abs(stft)
-        db_spec = librosa.amplitude_to_db(spectrogram, ref=np.max)
-
-        if db_spec.shape[1] < max_frames:
-            pad_width = max_frames - db_spec.shape[1]
-            db_spec = np.pad(db_spec, pad_width=((0, 0), (0, pad_width)), mode='constant')
-        else:
-            db_spec = db_spec[:, :max_frames]
-
-        flat = db_spec.flatten().reshape(1, -1)
-        flat_scaled = scaler.transform(flat)
-        return flat_scaled
-    except Exception as e:
-        print("Erro no preprocessamento:", e)
-        return None
+scaler = joblib.load("C:\\sexta\\appe\\Machine-Learning\\scaler.pkl")
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if 'file' not in request.files:
-        return jsonify({"error": "Nenhum arquivo enviado"}), 400
-
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({"error": "Nome de arquivo vazio"}), 400
+    print("Recebido áudio")
+    file = request.files['audio']
 
     try:
-        # Salvar arquivo temporário
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
-            file.save(tmp.name)
-            features = preprocess_audio(tmp.name)
-            os.unlink(tmp.name)  # apagar o arquivo temporário
+        audio, sr = librosa.load(file, sr=16000)  # carrega áudio com 16kHz
+        segment_duration = sr  # 1 segundo = 16000 amostras
+        num_segments = len(audio) // segment_duration
 
-        if features is None:
-            return jsonify({"error": "Erro ao processar o áudio"}), 500
+        predictions = []
+        prob = []
 
-        # Rodar modelo TFLite
-        interpreter.set_tensor(input_details[0]['index'], features.astype(np.float32))
-        interpreter.invoke()
-        output = interpreter.get_tensor(output_details[0]['index'])
-        prediction = float(output[0][0])
+        for i in range(num_segments):
+            start = i * segment_duration
+            end = start + segment_duration
+            segment = audio[start:end]
 
+            # Gera espectrograma
+            stft = librosa.stft(segment, n_fft=512, hop_length=256)
+            spectrogram = np.abs(stft)
+            db_spec = librosa.amplitude_to_db(spectrogram, ref=np.max)
+
+            # Ajusta para 128 frames
+            if db_spec.shape[1] < 128:
+                pad_width = 128 - db_spec.shape[1]
+                db_spec = np.pad(db_spec, pad_width=((0, 0), (0, pad_width)), mode='constant')
+            else:
+                db_spec = db_spec[:, :128]
+
+            # Achata, normaliza e faz predição
+            feat = db_spec.reshape(1, -1)
+            feat_scaled = scaler.transform(feat)
+
+            input_details = interpreter.get_input_details()
+            output_details = interpreter.get_output_details()
+            
+            interpreter.set_tensor(input_details[0]['index'], feat_scaled.astype(np.float32))
+            interpreter.invoke()
+            
+            output = interpreter.get_tensor(output_details[0]['index'])
+            print("Mais uma predição")
+            prob.append(float(output[0][0]))
+
+            prediction = int(output[0][0] > 0.5)
+            predictions.append(prediction)
+
+        # Resumo da predição (opcional)
+        percent_ronco = 100 * np.mean(predictions)
+        resumo = "roncando" if percent_ronco > 50 else "normal"
         return jsonify({
-            "roncando_probabilidade": prediction,
-            "classe": "roncando" if prediction > 0.5 else "normal"
+            'prob': prob,
+            'predictions': predictions,
+            'percent_ronco': percent_ronco,
+            'resumo': resumo
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
