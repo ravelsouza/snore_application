@@ -1,24 +1,29 @@
 from flask import Flask, request, jsonify
 import numpy as np
+import soundfile as sf
+import resampy
 import librosa
 import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 import joblib
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/teste', methods=['POST'])
-def teste():
-    return '<h1>Esse é o Teste de um modelo de Machine Leaning para detecção de ronco</h1>'
-
-
+# Caminhos relativos
+MODEL_PATH = os.path.join("model", "model.tflite")
+SCALER_PATH = os.path.join("model", "scaler.pkl")
 
 # Carrega modelo e scaler
 interpreter = tf.lite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
 scaler = joblib.load("scaler.pkl")
+
+@app.route('/teste', methods=['POST'])
+def teste():
+    return '<h1>Esse é o Teste de um modelo de Machine Learning para detecção de ronco</h1>'
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -26,7 +31,13 @@ def predict():
     file = request.files['audio']
 
     try:
-        audio, sr = librosa.load(file, sr=16000)  # carrega áudio com 16kHz
+        audio, sr = sf.read(file)
+        
+        # Resample se necessário (espera 16000 Hz)
+        if sr != 16000:
+            audio = resampy.resample(audio, sr, 16000)
+            sr = 16000
+
         segment_duration = sr  # 1 segundo = 16000 amostras
         num_segments = len(audio) // segment_duration
 
@@ -56,10 +67,10 @@ def predict():
 
             input_details = interpreter.get_input_details()
             output_details = interpreter.get_output_details()
-            
+
             interpreter.set_tensor(input_details[0]['index'], feat_scaled.astype(np.float32))
             interpreter.invoke()
-            
+
             output = interpreter.get_tensor(output_details[0]['index'])
             print("Mais uma predição")
             prob.append(float(output[0][0]))
@@ -67,9 +78,9 @@ def predict():
             prediction = int(output[0][0] > 0.5)
             predictions.append(prediction)
 
-        # Resumo da predição (opcional)
         percent_ronco = 100 * np.mean(predictions)
         resumo = "roncando" if percent_ronco > 50 else "normal"
+
         return jsonify({
             'prob': prob,
             'predictions': predictions,
@@ -81,4 +92,4 @@ def predict():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
